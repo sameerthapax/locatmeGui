@@ -7,10 +7,35 @@ function showLoading(message) {
     responseElement.textContent = message || 'Loading...';
 }
 
-// Function to fetch location repeatedly until success
-function fetchLocationUntilSuccess() {
-    showLoading('Attempting to fetch location...');
+// Function to fetch data until successful
+function fetchDataUntilSuccess() {
+    showLoading('Fetching data from the server...');
 
+    fetch(`${serverUrl}/view-all`, {
+        method: 'GET',
+    })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`Failed to fetch data. Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then((data) => {
+            responseElement.textContent = `Data fetched successfully:\n${JSON.stringify(data, null, 2)}`;
+        })
+        .catch((error) => {
+            showLoading(`Error fetching data: ${error.message}. Retrying...`);
+            setTimeout(fetchDataUntilSuccess, 3000); // Retry after 3 seconds
+        });
+}
+
+// Start fetching data on page load
+window.addEventListener('load', () => {
+    fetchDataUntilSuccess();
+});
+
+// Handle "Get Location and Insert" button click
+document.getElementById('get-location').addEventListener('click', () => {
     navigator.geolocation.getCurrentPosition((position) => {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
@@ -25,30 +50,20 @@ function fetchLocationUntilSuccess() {
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch location data. Status: ${response.status}`);
+                    throw new Error(`Failed to insert location. Status: ${response.status}`);
                 }
                 return response.text();
             })
             .then((data) => {
-                responseElement.textContent = `Location data received: ${data}`;
+                responseElement.textContent = `Location inserted successfully: ${data}`;
             })
             .catch((error) => {
-                showLoading(`Retrying... Error: ${error.message}`);
-                setTimeout(fetchLocationUntilSuccess, 3000); // Retry after 3 seconds
+                responseElement.textContent = `Error: ${error.message}`;
             });
     }, (error) => {
-        showLoading(`Error getting location: ${error.message}. Retrying...`);
-        setTimeout(fetchLocationUntilSuccess, 3000); // Retry after 3 seconds
+        responseElement.textContent = `Error getting location: ${error.message}`;
     });
-}
-
-// Start loading and fetching location on page load
-window.addEventListener('load', () => {
-    fetchLocationUntilSuccess();
 });
-
-// Handle "Get Location and Insert" button click
-document.getElementById('get-location').addEventListener('click', fetchLocationUntilSuccess);
 
 // Handle "Ghost Mode" button click
 document.getElementById('ghost-mode').addEventListener('click', () => {
@@ -56,8 +71,8 @@ document.getElementById('ghost-mode').addEventListener('click', () => {
     fetch(`${serverUrl}/ghost-mode`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',}
-        })
+            'Content-Type': 'application/json',
+        }})
         .then((response) => {
             if (!response.ok) {
                 throw new Error(`Ghost Mode failed. Status: ${response.status}`);
